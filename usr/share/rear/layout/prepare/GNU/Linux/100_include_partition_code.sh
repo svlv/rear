@@ -333,10 +333,11 @@ EOF
             ) >> $LAYOUT_CODE
         fi
 
-        if [ "$label" = "gpt" ] && [ -n "$partuuid" ] && [ "$partuuid" != "no-partuuid" ]; then
+        if is_true "$DISK_LAYOUT_PARTUUID" && [ -n "$partuuid" ] \
+            && [ "$partuuid" != "no-partuuid" ]; then
             (
             echo "my_udevsettle"
-            echo "set_partuuid $device $number $partuuid || true"
+            echo "set_partuuid $device $number $partuuid"
             echo "my_udevsettle"
             ) >> "$LAYOUT_CODE"
         fi

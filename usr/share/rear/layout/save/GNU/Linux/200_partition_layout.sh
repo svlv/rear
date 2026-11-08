@@ -352,13 +352,17 @@ extract_partitions() {
         done < $TMP_DIR/partitions-data
     fi
 
+    declare partition_name partuuid
     while read -r partition_nr size start type flags junk ; do
-        local partuuid
+        partuuid=""
+
         if [ "$disk_label" = "gpt" ]; then
-            local partition_name="${device%/*}/${partition_prefix#*/}$partition_nr"
-            local partition_device
+            partition_name="${device%/*}/${partition_prefix#*/}$partition_nr"
             partition_device="$(get_device_name "$partition_name")"
-            partuuid="$(get_partuuid "$partition_device")"
+            if ! partuuid="$(get_partuuid "$partition_device")" \
+                && is_true "$DISK_LAYOUT_PARTUUID"; then
+                Error "Failed to retrieve PARTUUID for '$partition_device'"
+            fi
         fi
 
         if [ -z "$partuuid" ]; then
@@ -514,9 +518,11 @@ Log "Saving disks and their partitions"
 # cf. https://github.com/rear/rear/issues/1963
 grep -Eq '^disk |^part ' $DISKLAYOUT_FILE && REQUIRED_PROGS+=( parted partprobe ) || true
 
-# sgdisk is required if PARTUUIDs must be preserved
-if partuuid_restoration_is_required; then
-    REQUIRED_PROGS+=( sgdisk )
-else
-    PROGS+=( sgdisk )
-fi
+# sgdisk is required if PARTUUIDs are added to disklayout.conf,
+# as sgdisk is used to set PARTUUID during recovery.
+while read _ _ _ _ _ _ _ partuuid junk ; do
+    if [ "$partuuid" != "no-partuuid" ] ; then
+        REQUIRED_PROGS+=( sgdisk )
+        break
+    fi
+done < <( grep "^part " "$DISKLAYOUT_FILE" )

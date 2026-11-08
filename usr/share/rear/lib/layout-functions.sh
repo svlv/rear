@@ -1576,6 +1576,10 @@ function get_partuuid() {
         done
     fi
 
+    if [ -z "$partuuid" ]; then
+        return 1
+    fi
+
     echo "$partuuid"
 }
 
@@ -1589,33 +1593,6 @@ function set_partuuid() {
     fi
 
     sgdisk --partition-guid="$partnum":"$partuuid" "$device"
-}
-
-# In cases when PARTUUIDs are used to tell the Linux kernel where the root
-# filesystem live, e.g.,
-#     linux /vmlinuz-... root=PARTUUID=<partition uuid>
-# or when they are used in /etc/fstab to mount devices, e.g.,
-#     PARTUUID=<partition uuid> /boot xfs defaults 0 0
-# changing PARTUUIDs during recovery may lead to a non-bootable system.
-# Therefore, in these cases, PARTUUID restoration is required.
-#
-# In other cases, PARTUUID restoration considered as a nice-to-have.
-function partuuid_restoration_is_required() {
-    local cfgs=(
-        /boot/grub/grub.cfg
-        /boot/grub2/grub.cfg
-        /boot/loader/entries/
-        /etc/fstab
-    )
-
-    local cfg
-    for cfg in "${cfgs[@]}"; do
-        if test -e "$cfg" && grep -qr "PARTUUID=" "$cfg"; then
-            return 0
-        fi
-    done
-
-    return 1
 }
 
 # The regex defines the expected PARTUUID format.
